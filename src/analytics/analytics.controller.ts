@@ -6,14 +6,23 @@ import { ResponseHelper, ApiResponse } from '../common/utils/response.helper';
  * Analytics Controller
  *
  * Responsibilities:
- * - Accept analytics requests
- * - Call AnalyticsService for data aggregation
- * - Return standardized responses
+ * - Expose read-only GET APIs for analytics data
+ * - Validate input (userId as param)
+ * - Call AnalyticsService for aggregation
+ * - Return standardized API responses
+ *
+ * Endpoints:
+ * - GET /analytics/overview/:userId - Comprehensive analytics overview
+ * - GET /analytics/filler-words/:userId - Filler words aggregation
+ * - GET /analytics/improvement-timeline/:userId - Performance timeline
  *
  * Must NOT:
- * - Contain business logic
+ * - Contain business logic (use AnalyticsService)
  * - Access database directly
- * - Perform data calculations
+ * - Perform calculations
+ * - Call external APIs
+ *
+ * Future: Replace userId param with authenticated session context
  */
 
 @Controller('analytics')
@@ -21,44 +30,73 @@ export class AnalyticsController {
   constructor(private readonly analyticsService: AnalyticsService) {}
 
   /**
-   * Get user performance overview
+   * Get analytics overview
+   *
+   * Returns:
+   * - Total interviews
+   * - Average final score
+   * - Best performing interviews (top 3)
+   * - Top weaknesses (lowest 2 categories)
+   * - Recent trend (improving/declining/stable)
+   *
+   * @param userId - User ID (placeholder for authentication)
+   * @returns Analytics overview
    */
-  @Get('performance/:userId')
-  async getUserPerformance(
+  @Get('overview/:userId')
+  async getAnalyticsOverview(
     @Param('userId') userId: string,
   ): Promise<ApiResponse> {
-    const result = await this.analyticsService.getUserPerformance(userId);
+    const overview = await this.analyticsService.getAnalyticsOverview(userId);
     return ResponseHelper.success(
-      'Performance data retrieved successfully',
-      result,
+      'Analytics overview retrieved successfully',
+      overview,
     );
   }
 
   /**
-   * Get interview statistics
+   * Get filler words analytics
+   *
+   * Returns:
+   * - Total filler words across all interviews
+   * - Most common filler words with counts
+   * - Average filler words per interview
+   *
+   * @param userId - User ID (placeholder for authentication)
+   * @returns Filler words analytics
    */
-  @Get('interviews/:interviewId')
-  async getInterviewStats(
-    @Param('interviewId') interviewId: string,
+  @Get('filler-words/:userId')
+  async getFillerWordsAnalytics(
+    @Param('userId') userId: string,
   ): Promise<ApiResponse> {
-    const result = await this.analyticsService.getInterviewStats(interviewId);
+    const fillerWords =
+      await this.analyticsService.getFillerWordsAnalytics(userId);
     return ResponseHelper.success(
-      'Interview statistics retrieved successfully',
-      result,
+      'Filler words analytics retrieved successfully',
+      fillerWords,
     );
   }
 
   /**
-   * Get improvement trends
+   * Get improvement timeline
+   *
+   * Returns:
+   * - Chronological list of interviews with scores
+   * - Overall trend (improving/declining/stable)
+   * - Score improvement (last vs first)
+   *
+   * @param userId - User ID (placeholder for authentication)
+   * @returns Improvement timeline
    */
-  @Get('trends/:userId')
-  async getImprovementTrends(
+  @Get('improvement-timeline/:userId')
+  async getImprovementTimeline(
     @Param('userId') userId: string,
   ): Promise<ApiResponse> {
-    const result = await this.analyticsService.getImprovementTrends(userId);
+    const timeline =
+      await this.analyticsService.getImprovementTimeline(userId);
     return ResponseHelper.success(
-      'Improvement trends retrieved successfully',
-      result,
+      'Improvement timeline retrieved successfully',
+      timeline,
     );
   }
 }
+
