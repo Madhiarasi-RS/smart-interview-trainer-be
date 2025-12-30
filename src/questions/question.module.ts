@@ -1,21 +1,35 @@
 import { Module } from '@nestjs/common';
+import { QuestionController } from './question.controller';
 import { QuestionService } from './question.service';
+import { GeminiIntegration } from '../integrations/gemini.integration';
 
 /**
- * Questions Module
+ * Question Module
  *
- * Provides question generation and management functionality
+ * Provides AI-powered question generation functionality
  *
- * Future Integrations:
- * - AI Module for Gemini-powered question generation
- * - MongoDB for question bank storage
+ * Components:
+ * - QuestionController: API endpoints for question generation
+ * - QuestionService: Business logic for prompt building and duration mapping
+ * - GeminiIntegration: Stub wrapper for Gemini AI (mock responses for now)
+ *
+ * Features:
+ * - Generate questions by domain, difficulty, duration
+ * - Duration-based question count mapping (15/30/60 min)
+ * - MCQ vs Descriptive question types
+ * - Comprehensive prompt building for AI
+ *
+ * Future Enhancements:
+ * - Question bank storage in MongoDB
+ * - Question caching and reuse
+ * - Custom question templates
+ * - Real Gemini API integration (replace stub)
  */
 
 @Module({
-  imports: [
-    // TODO: Import AI Module for question generation
-  ],
-  providers: [QuestionService],
+  imports: [],
+  controllers: [QuestionController],
+  providers: [QuestionService, GeminiIntegration],
   exports: [QuestionService],
 })
 export class QuestionModule {}

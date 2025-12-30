@@ -1,14 +1,8 @@
-import {
-  Controller,
-  Post,
-  Get,
-  Patch,
-  Delete,
-  Body,
-  Param,
-} from '@nestjs/common';
+import { Controller, Post, Get, Patch, Body, Param } from '@nestjs/common';
 import { InterviewService } from './interview.service';
 import { ResponseHelper, ApiResponse } from '../common/utils/response.helper';
+import { CreateInterviewDto } from './dto/create-interview.dto';
+import { UpdateInterviewStatusDto } from './dto/update-interview-status.dto';
 
 /**
  * Interview Controller
@@ -19,10 +13,16 @@ import { ResponseHelper, ApiResponse } from '../common/utils/response.helper';
  * - Call InterviewService for business logic
  * - Return standardized responses
  *
+ * Endpoints:
+ * - POST /interviews - Create new interview session
+ * - PATCH /interviews/:id/status - Update interview status
+ * - GET /interviews/user/:userId - Get user's interviews
+ * - GET /interviews/:id - Get specific interview
+ *
  * Must NOT:
  * - Contain business logic
  * - Access database directly
- * - Handle WebSocket connections (use gateway)
+ * - Handle WebSocket connections (separate gateway)
  */
 
 @Controller('interviews')
@@ -31,55 +31,69 @@ export class InterviewController {
 
   /**
    * Create new interview session
-   * TODO: Add CreateInterviewDto
+   *
+   * @param createInterviewDto - Interview creation data
+   * @returns Created interview
    */
   @Post()
-  async create(@Body() body: Record<string, unknown>): Promise<ApiResponse> {
-    const result = await this.interviewService.create(body);
+  async createInterview(
+    @Body() createInterviewDto: CreateInterviewDto,
+  ): Promise<ApiResponse> {
+    const interview =
+      await this.interviewService.createInterview(createInterviewDto);
     return ResponseHelper.success(
       'Interview session created successfully',
-      result,
+      interview,
     );
   }
 
   /**
-   * Get all interviews for current user
-   * TODO: Add pagination and filtering
+   * Update interview status
+   *
+   * @param id - Interview ID
+   * @param updateInterviewStatusDto - Status update data
+   * @returns Updated interview
    */
-  @Get()
-  async findAll(): Promise<ApiResponse> {
-    const result = await this.interviewService.findAll();
-    return ResponseHelper.success('Interviews retrieved successfully', result);
+  @Patch(':id/status')
+  async updateInterviewStatus(
+    @Param('id') id: string,
+    @Body() updateInterviewStatusDto: UpdateInterviewStatusDto,
+  ): Promise<ApiResponse> {
+    const interview = await this.interviewService.updateInterviewStatus(
+      id,
+      updateInterviewStatusDto,
+    );
+    return ResponseHelper.success(
+      'Interview status updated successfully',
+      interview,
+    );
+  }
+
+  /**
+   * Get all interviews for a user
+   *
+   * @param userId - User ID
+   * @returns Array of user's interviews
+   */
+  @Get('user/:userId')
+  async getUserInterviews(@Param('userId') userId: string): Promise<ApiResponse> {
+    const interviews = await this.interviewService.getUserInterviews(userId);
+    return ResponseHelper.success(
+      `Retrieved ${interviews.length} interview(s) for user`,
+      interviews,
+    );
   }
 
   /**
    * Get specific interview by ID
+   *
+   * @param id - Interview ID
+   * @returns Interview details
    */
   @Get(':id')
-  async findOne(@Param('id') id: string): Promise<ApiResponse> {
-    const result = await this.interviewService.findOne(id);
-    return ResponseHelper.success('Interview retrieved successfully', result);
-  }
-
-  /**
-   * Update interview session
-   * TODO: Add UpdateInterviewDto
-   */
-  @Patch(':id')
-  async update(
-    @Param('id') id: string,
-    @Body() body: Record<string, unknown>,
-  ): Promise<ApiResponse> {
-    const result = await this.interviewService.update(id, body);
-    return ResponseHelper.success('Interview updated successfully', result);
-  }
-
-  /**
-   * Delete interview session
-   */
-  @Delete(':id')
-  async remove(@Param('id') id: string): Promise<ApiResponse> {
-    const result = await this.interviewService.remove(id);
-    return ResponseHelper.success('Interview deleted successfully', result);
+  async getInterview(@Param('id') id: string): Promise<ApiResponse> {
+    const interview = await this.interviewService.getInterviewById(id);
+    return ResponseHelper.success('Interview retrieved successfully', interview);
   }
 }
+

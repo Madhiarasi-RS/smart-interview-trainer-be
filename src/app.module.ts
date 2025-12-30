@@ -7,6 +7,7 @@ import { AppService } from './app.service';
 // Configuration
 import appConfig from './config/app.config';
 import databaseConfig from './config/database.config';
+import geminiConfig from './config/gemini.config';
 
 // Feature Modules
 import { AuthModule } from './auth/auth.module';
@@ -37,7 +38,7 @@ import { ScorecardModule } from './scorecard/scorecard.module';
   imports: [
     // Global Configuration Module
     ConfigModule.forRoot({
-      isGlobal: true,
+      isGlobal: true,, geminiConfig
       load: [appConfig, databaseConfig],
       envFilePath: '.env',
       cache: true,

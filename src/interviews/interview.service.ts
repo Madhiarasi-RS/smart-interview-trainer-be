@@ -1,90 +1,188 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
+import { InterviewRepository } from './interview.repository';
+import { CreateInterviewDto } from './dto/create-interview.dto';
+import { UpdateInterviewStatusDto } from './dto/update-interview-status.dto';
+import { InterviewDocument, InterviewStatus } from './interview.schema';
 
 /**
  * Interview Service
  *
+ * Manages interview session lifecycle and state transitions
+ *
  * Responsibilities:
- * - Manage interview session lifecycle
- * - Coordinate real-time interview flow
- * - Track interview progress and state
+ * - Create new interview sessions
+ * - Validate and execute state transitions
+ * - Enforce business rules (e.g., can't skip states)
+ * - Retrieve interview data
  *
- * Business Logic Placeholder:
- * - Create interview session
- * - Manage interview state (pending, active, completed)
- * - Store interview recordings and transcripts
- * - Generate interview reports
+ * State transition rules:
+ * - CREATED → IN_PROGRESS (sets startedAt)
+ * - IN_PROGRESS → COMPLETED (sets completedAt)
+ * - Invalid transitions rejected with BadRequestException
  *
- * Integration Points (Future):
- * - QuestionsService for generating questions
- * - RecordingsService for storing audio/video
- * - ScorecardService for evaluation
- * - InterviewGateway for real-time communication
+ * NO AI logic
+ * NO WebSocket logic
+ * NO media processing
+ * Pure session state management only
  */
 
 @Injectable()
 export class InterviewService {
+  private readonly logger = new Logger(InterviewService.name);
+
+  constructor(private readonly interviewRepository: InterviewRepository) {}
+
   /**
    * Create new interview session
-   * TODO: Implement session creation with MongoDB
+   *
+   * @param createInterviewDto - Interview creation data
+   * @returns Created interview document
    */
-  async create(
-    data: Record<string, unknown>,
-  ): Promise<Record<string, unknown>> {
-    // Placeholder: Will create interview session in MongoDB
-    return Promise.resolve({
-      message: 'Interview creation logic to be implemented',
-      data,
-    });
+  async createInterview(
+    createInterviewDto: CreateInterviewDto,
+  ): Promise<InterviewDocument> {
+    this.logger.log(
+      `Creating interview for user ${createInterviewDto.userId} in domain ${createInterviewDto.domain}`,
+    );
+
+    const interview =
+      await this.interviewRepository.createSession(createInterviewDto);
+
+    this.logger.log(`Interview created with ID: ${interview._id}`);
+    return interview;
   }
 
   /**
-   * Get all interviews for user
-   * TODO: Implement interview listing with pagination
+   * Update interview status with state transition validation
+   *
+   * Valid transitions:
+   * - CREATED → IN_PROGRESS (sets startedAt to current time)
+   * - IN_PROGRESS → COMPLETED (sets completedAt to current time)
+   *
+   * @param id - Interview ID
+   * @param updateInterviewStatusDto - Status update data
+   * @returns Updated interview document
+   * @throws NotFoundException if interview not found
+   * @throws BadRequestException if invalid state transition
    */
-  async findAll(): Promise<Record<string, unknown>> {
-    // Placeholder: Will fetch interviews from MongoDB
-    return Promise.resolve({
-      message: 'Interview listing logic to be implemented',
-    });
-  }
-
-  /**
-   * Get specific interview by ID
-   * TODO: Implement interview retrieval
-   */
-  async findOne(id: string): Promise<Record<string, unknown>> {
-    // Placeholder: Will fetch interview by ID from MongoDB
-    return Promise.resolve({
-      message: 'Interview retrieval logic to be implemented',
-      id,
-    });
-  }
-
-  /**
-   * Update interview session
-   * TODO: Implement interview update logic
-   */
-  async update(
+  async updateInterviewStatus(
     id: string,
-    data: Record<string, unknown>,
-  ): Promise<Record<string, unknown>> {
-    // Placeholder: Will update interview in MongoDB
-    return Promise.resolve({
-      message: 'Interview update logic to be implemented',
+    updateInterviewStatusDto: UpdateInterviewStatusDto,
+  ): Promise<InterviewDocument> {
+    const interview = await this.interviewRepository.findById(id);
+
+    if (!interview) {
+      throw new NotFoundException(`Interview with ID ${id} not found`);
+    }
+
+    const currentStatus = interview.status;
+    const newStatus = updateInterviewStatusDto.status;
+
+    // Validate state transition
+    this.validateStateTransition(currentStatus, newStatus);
+
+    // Prepare timestamp updates
+    const timestamps: { startedAt?: Date; completedAt?: Date } = {};
+
+    if (newStatus === InterviewStatus.IN_PROGRESS) {
+      timestamps.startedAt = new Date();
+      this.logger.log(`Starting interview ${id} at ${timestamps.startedAt}`);
+    }
+
+    if (newStatus === InterviewStatus.COMPLETED) {
+      timestamps.completedAt = new Date();
+      this.logger.log(`Completing interview ${id} at ${timestamps.completedAt}`);
+    }
+
+    const updatedInterview = await this.interviewRepository.updateStatus(
       id,
-      data,
-    });
+      newStatus,
+      timestamps,
+    );
+
+    if (!updatedInterview) {
+      throw new NotFoundException(
+        `Interview with ID ${id} not found during update`,
+      );
+    }
+
+    this.logger.log(
+      `Interview ${id} status updated: ${currentStatus} → ${newStatus}`,
+    );
+
+    return updatedInterview;
   }
 
   /**
-   * Delete interview session
-   * TODO: Implement interview deletion (soft delete recommended)
+   * Get all interviews for a user
+   *
+   * @param userId - User ID
+   * @returns Array of interview documents
    */
-  async remove(id: string): Promise<Record<string, unknown>> {
-    // Placeholder: Will delete interview from MongoDB
-    return Promise.resolve({
-      message: 'Interview deletion logic to be implemented',
-      id,
-    });
+  async getUserInterviews(userId: string): Promise<InterviewDocument[]> {
+    this.logger.log(`Fetching interviews for user ${userId}`);
+    return this.interviewRepository.findByUserId(userId);
+  }
+
+  /**
+   * Get interview by ID
+   *
+   * @param id - Interview ID
+   * @returns Interview document
+   * @throws NotFoundException if interview not found
+   */
+  async getInterviewById(id: string): Promise<InterviewDocument> {
+    const interview = await this.interviewRepository.findById(id);
+
+    if (!interview) {
+      throw new NotFoundException(`Interview with ID ${id} not found`);
+    }
+
+    return interview;
+  }
+
+  /**
+   * Validate interview state transition
+   *
+   * Allowed transitions:
+   * - CREATED → IN_PROGRESS
+   * - IN_PROGRESS → COMPLETED
+   *
+   * @param currentStatus - Current interview status
+   * @param newStatus - Desired new status
+   * @throws BadRequestException if transition is invalid
+   */
+  private validateStateTransition(
+    currentStatus: InterviewStatus,
+    newStatus: InterviewStatus,
+  ): void {
+    // Allow idempotent operations (same status)
+    if (currentStatus === newStatus) {
+      this.logger.warn(
+        `Interview already in ${newStatus} state - idempotent operation`,
+      );
+      return;
+    }
+
+    // Define allowed transitions
+    const allowedTransitions: Record<InterviewStatus, InterviewStatus[]> = {
+      [InterviewStatus.CREATED]: [InterviewStatus.IN_PROGRESS],
+      [InterviewStatus.IN_PROGRESS]: [InterviewStatus.COMPLETED],
+      [InterviewStatus.COMPLETED]: [], // No transitions allowed from COMPLETED
+    };
+
+    const validNextStates = allowedTransitions[currentStatus];
+
+    if (!validNextStates.includes(newStatus)) {
+      throw new BadRequestException(
+        `Invalid state transition: ${currentStatus} → ${newStatus}. ` +
+          `Allowed transitions from ${currentStatus}: ${validNextStates.length > 0 ? validNextStates.join(', ') : 'none'}`,
+      );
+    }
   }
 }

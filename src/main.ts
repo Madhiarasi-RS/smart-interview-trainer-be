@@ -75,8 +75,8 @@ async function bootstrap() {
   logger.log('Global logging interceptor enabled');
 
   // Start server
-  const port = configService.get<number>('app.port');
-  const nodeEnv = configService.get<string>('app.nodeEnv');
+  const port = configService.get<number>('app.port') ?? 3001;
+  const nodeEnv = configService.get<string>('app.nodeEnv') ?? 'development';
 
   await app.listen(port);
 
