@@ -308,8 +308,6 @@ export class ScorecardService {
   private roundToTwoDecimals(value: number): number {
     return Math.round(value * 100) / 100;
   }
-    });
-  }
 
   /**
    * Get feedback recommendations

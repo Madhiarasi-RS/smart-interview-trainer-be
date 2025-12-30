@@ -215,8 +215,6 @@ Domain Focus: ${domainContext}
 
     return difficultyContextMap[difficulty];
   }
-}
-  }
 
   /**
    * Save custom question template
