@@ -1,7 +1,11 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { JwtModule } from '@nestjs/jwt';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { User, UserSchema } from './schemas/user.schema';
+import { Otp, OtpSchema } from './schemas/otp.schema';
 import { EmailService } from '../common/services/email.service';
 import {
   EmailTemplate,
@@ -11,31 +15,55 @@ import {
 /**
  * Auth Module
  *
- * Provides authentication and authorization functionality
+ * Complete authentication module with:
+ * - Registration with OTP verification
+ * - Login with email + password
+ * - Forgot password with OTP
+ * - Password reset
+ * - Logout
  *
  * Features:
- * - OTP-based login
- * - Email verification
- * - Template-based emails from MongoDB
+ * - JWT authentication with HTTP-only cookies
+ * - Bcrypt password hashing
+ * - OTP storage in MongoDB with TTL
+ * - Email sending via EmailService
+ * - Standard API response wrapper
  *
- * Dependencies:
- * - EmailService for sending OTP emails
- * - EmailTemplate schema for template storage
+ * Schemas:
+ * - User: User accounts with hashed passwords
+ * - OTP: Temporary OTP codes with expiry
+ * - EmailTemplate: Email templates from MongoDB
  *
- * Future Integrations:
- * - JwtModule for token management
- * - PassportModule for authentication strategies
- * - UsersModule for user operations
+ * Services:
+ * - AuthService: Authentication business logic
+ * - EmailService: Email sending with templates
+ * - JwtService: JWT token generation
+ *
+ * Security:
+ * - Passwords never stored in plaintext
+ * - OTPs expire after 5 minutes
+ * - JWT tokens in HTTP-only cookies
+ * - CSRF protection with sameSite: strict
  */
 
 @Module({
   imports: [
+    ConfigModule,
     MongooseModule.forFeature([
+      { name: User.name, schema: UserSchema },
+      { name: Otp.name, schema: OtpSchema },
       { name: EmailTemplate.name, schema: EmailTemplateSchema },
     ]),
-    // TODO: Add JwtModule configuration
-    // TODO: Add PassportModule configuration
-    // TODO: Import UsersModule
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        secret: configService.get<string>('jwt.secret'),
+        signOptions: {
+          expiresIn: configService.get<string>('jwt.expiresIn') || '7d',
+        },
+      }),
+    }),
   ],
   controllers: [AuthController],
   providers: [AuthService, EmailService],

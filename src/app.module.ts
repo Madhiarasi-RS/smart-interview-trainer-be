@@ -9,6 +9,7 @@ import appConfig from './config/app.config';
 import databaseConfig from './config/database.config';
 import geminiConfig from './config/gemini.config';
 import emailConfig from './config/email.config';
+import jwtConfig from './config/jwt.config';
 
 // Feature Modules
 import { AuthModule } from './auth/auth.module';
@@ -51,7 +52,7 @@ import { ScorecardModule } from './scorecard/scorecard.module';
     // Global Configuration Module
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [appConfig, databaseConfig, geminiConfig, emailConfig],
+      load: [appConfig, databaseConfig, geminiConfig, emailConfig, jwtConfig],
       envFilePath: '.env',
       cache: true,
       expandVariables: true,

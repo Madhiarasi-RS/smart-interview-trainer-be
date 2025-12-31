@@ -2,13 +2,16 @@ import { IsEmail, IsNotEmpty, IsString, Matches, Length } from 'class-validator'
 
 /**
  * Verify OTP DTO
- * 
- * Validates OTP verification request
- * 
- * Rules:
- * - email must be valid email format
- * - otp must be numeric string
- * - otp length must be 4-6 digits
+ *
+ * Validation for OTP verification (registration or password reset)
+ *
+ * Fields:
+ * - email: Email address linked to OTP
+ * - otp: 6-digit numeric code
+ *
+ * Flow:
+ * - Registration: User enters OTP to verify email and complete registration
+ * - Password Reset: User enters OTP to proceed to password reset
  */
 
 export class VerifyOtpDto {
@@ -19,6 +22,6 @@ export class VerifyOtpDto {
   @IsString({ message: 'OTP must be a string' })
   @IsNotEmpty({ message: 'OTP is required' })
   @Matches(/^[0-9]+$/, { message: 'OTP must contain only numbers' })
-  @Length(4, 6, { message: 'OTP must be between 4 and 6 digits' })
+  @Length(6, 6, { message: 'OTP must be exactly 6 digits' })
   otp!: string;
 }
